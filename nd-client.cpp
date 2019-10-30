@@ -95,8 +95,8 @@ public:
   
   void sendArrivalInterest()
   {
-    if (!is_ready)
-      return;
+    // if (!is_ready)
+    //   return;s
 
     Name name("/ndn/nd/arrival");
     name.append((uint8_t*)&m_IP, sizeof(m_IP));
@@ -443,12 +443,9 @@ public:
 
     m_scheduler = new Scheduler(m_client->m_face.getIoService());
     m_client->registerSubPrefix();
-    m_client->sendArrivalInterest();
-    loop();
   }
 
   void loop() {
-    //m_client->sendNDNDInterest();
     m_scheduler->schedule(time::seconds(1), [this] {
       loop();
     });
@@ -473,5 +470,7 @@ main(int argc, char** argv)
 {
   Options opt;
   Program program(opt);
+  program.m_client->sendArrivalInterest();
+  //program.loop();
   program.m_client->m_face.processEvents();
 }

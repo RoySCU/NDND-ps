@@ -72,10 +72,12 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
       comp = name.get(i + 1);
       comp.wireDecode(ip);
       memcpy(entry.ip, ip.value(), sizeof(entry.ip));
+      std::cout << "ip finished" << std::endl;
       //getPort
       comp = name.get(i + 2);
       comp.wireDecode(port);
-      memcpy(&entry.port, port.value(), sizeof(entry.ip));
+      memcpy(&entry.port, port.value(), sizeof(entry.port));
+      std::cout << "port finished" << std::endl;
       //getName
       comp = name.get(i + 3);
       entry.prefix = Name(comp);
