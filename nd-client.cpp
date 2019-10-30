@@ -99,10 +99,8 @@ public:
     //   return;s
 
     Name name("/ndn/nd/arrival");
-    name.append((uint8_t*)&m_IP, sizeof(m_IP));
-    name.append((uint8_t*)&m_port, sizeof(m_port));
-    name.append(m_prefix);
-    name.appendTimestamp();
+    name.append((uint8_t*)&m_IP, sizeof(m_IP)).append((uint8_t*)&m_port, sizeof(m_port));
+    name.appendNumber(m_prefix.size()).append(m_prefix).appendTimestamp();
 
     Interest interest(name);
     interest.setInterestLifetime(30_s);

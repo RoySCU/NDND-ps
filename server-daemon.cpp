@@ -79,7 +79,14 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
       std::cout << "port finished" << std::endl;
       //getName
       comp = name.get(i + 3);
-      entry.prefix = Name(comp);
+      int begin = i + 3;
+      Name prefix;
+      uint64_t name_size = comp.toNumber();
+      for (int j = 0; j < name_size; j++) {
+        prefix.append(name.get(begin + j));
+      }
+      entry.prefix = prefix;
+
       std::cout << "Arrival, Name is: " << entry.prefix.toUri() << std::endl;
 
       // AddRoute and Subscribe Back
