@@ -68,16 +68,14 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
     if (ret == 0)
     {
       std::cout << "arrival" << std::endl;
-      Name::Component comp; Block ip, port;
+      Name::Component comp;
       // getIP
       comp = name.get(i + 1);
-      comp.wireDecode(ip);
-      memcpy(entry.ip, ip.value(), sizeof(entry.ip));
+      memcpy(entry.ip, comp.value(), sizeof(entry.ip));
       std::cout << "ip finished" << std::endl;
       //getPort
       comp = name.get(i + 2);
-      comp.wireDecode(port);
-      memcpy(&entry.port, port.value(), sizeof(entry.port));
+      memcpy(&entry.port, comp.value(), sizeof(entry.port));
       std::cout << "port finished" << std::endl;
       //getName
       comp = name.get(i + 3);
