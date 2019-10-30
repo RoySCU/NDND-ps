@@ -26,7 +26,7 @@ public:
     : m_prefix("/test/01/02")
     , server_prefix("/ndn/nd")
     // , server_ip("127.0.0.1")
-    , server_ip("131.179.176.110")
+    , server_ip("192.168.0.9")
   {
   }
 public:
@@ -111,9 +111,8 @@ public:
 
     cout << "Arrival Interest: " << interest << endl;
 
-    m_face.expressInterest(interest, bind(&NDNDClient::onData, this, _1, _2), //no expectation
-                                     bind(&NDNDClient::onNack, this, _1, _2), //no expectation
-                                     bind(&NDNDClient::onTimeout, this, _1)); //no expectation
+    m_face.expressInterest(interest, nullptr, bind(&NDNDClient::onNack, this, _1, _2), //no expectation
+                           nullptr); //no expectation
   }
 
   void registerSubPrefix()
@@ -125,7 +124,7 @@ public:
   }
 
 
-  void sendNDNDInterest()
+  void sendSubInterest()
   {
     // Wait for face to ND Server to be registered in NFD
     if (!is_ready)
@@ -135,19 +134,19 @@ public:
     Interest interest(name);
     interest.setInterestLifetime(30_s);
     interest.setMustBeFresh(true);
-    make_NDND_interest_parameter();
+    //make_NDND_interest_parameter();
     interest.setApplicationParameters(m_buffer, m_len);
     interest.setNonce(4);
     interest.setCanBePrefix(false);
 
     m_face.expressInterest(interest,
-                           bind(&NDNDClient::onData, this, _1, _2),
+                           bind(&NDNDClient::onSubData, this, _1, _2),
                            bind(&NDNDClient::onNack, this, _1, _2),
                            bind(&NDNDClient::onTimeout, this, _1));
   }
 
 // private:
-  void onData(const Interest& interest, const Data& data)
+  void onSubData(const Interest& interest, const Data& data)
   {
     std::cout << data << std::endl;
 
@@ -163,7 +162,6 @@ public:
       std::stringstream ss;
       ss << "udp4://" << inet_ntoa(*(in_addr*)(pResult->IpAddr)) << ':' << ntohs(pResult->Port);
       printf("Port: %hu\n", ntohs(pResult->Port));
-      printf("Subnet Mask: %s\n", inet_ntoa(*(in_addr*)(pResult->SubnetMask)));
 
       auto result = Block::fromBuffer(pResult->NamePrefix, data.getContent().value() + dataSize - pResult->NamePrefix);
       name.wireDecode(std::get<1>(result));
@@ -444,6 +442,7 @@ public:
   }
 
   void loop() {
+    m_client->sendSubInterest();
     m_scheduler->schedule(time::seconds(1), [this] {
       loop();
     });
@@ -469,6 +468,6 @@ main(int argc, char** argv)
   Options opt;
   Program program(opt);
   program.m_client->sendArrivalInterest();
-  //program.loop();
+  program.loop();
   program.m_client->m_face.processEvents();
 }

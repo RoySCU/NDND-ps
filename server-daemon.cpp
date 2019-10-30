@@ -40,7 +40,7 @@ NDServer::subscribeBack(const std::string& url, DBEntry& entry)
 
   m_face.expressInterest(interest,
                          std::bind(&NDServer::onSubData, this, _2, entry),
-                         nullptr,
+                         std::bind(&NDServer::onNack, this, _1, _2),
                          nullptr);
   std::cout << "Subscribe Back Interest: " << interest << std::endl;
 }
@@ -55,7 +55,7 @@ NDServer::onSubData(const Data& data, DBEntry& entry)
   memcpy(entry.ip, ptr, sizeof(entry.ip));
 }
 
-void
+int
 NDServer::parseInterest(const Interest& interest, DBEntry& entry)
 {
   std::cout << "Parsing Interest: " << interest << std::endl;
@@ -73,11 +73,11 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
       comp = name.get(i + 1);
       memcpy(entry.ip, comp.value(), sizeof(entry.ip));
       std::cout << "ip finished" << std::endl;
-      //getPort
+      // getPort
       comp = name.get(i + 2);
       memcpy(&entry.port, comp.value(), sizeof(entry.port));
       std::cout << "port finished" << std::endl;
-      //getName
+      // getName
       comp = name.get(i + 3);
       int begin = i + 3;
       Name prefix;
@@ -90,35 +90,40 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
       std::cout << "Arrival, Name is: " << entry.prefix.toUri() << std::endl;
 
       // AddRoute and Subscribe Back
+      m_db.push_back(entry);
       addRoute(entry.prefix.toUri(), entry);
-      return;
+      subscribeBack(entry.prefix.toUri(), entry);
+      return 1;
     }
   }
-  auto paramBlock = interest.getApplicationParameters();
+  // then it would be a Subscribe Interest
+  return 0;
 
-  struct PARAMETER param;
-  memcpy(&param, paramBlock.value(), sizeof(struct PARAMETER));
+  // auto paramBlock = interest.getApplicationParameters();
 
-  for (int i = 0; i < paramBlock.value_size(); i++) {
-    printf("%02x", paramBlock.value()[i]);
-  }
+  // struct PARAMETER param;
+  // memcpy(&param, paramBlock.value(), sizeof(struct PARAMETER));
 
-  Name prefix;
-  Block nameBlock(paramBlock.value() + sizeof(struct PARAMETER),
-                  paramBlock.value_size() - sizeof(struct PARAMETER));
-  prefix.wireDecode(nameBlock);
+  // for (int i = 0; i < paramBlock.value_size(); i++) {
+  //   printf("%02x", paramBlock.value()[i]);
+  // }
 
-  entry.v4 = (param.V4 == 1)? 1 : 0;
-  memcpy(entry.ip, param.IpAddr, 16);
-  memcpy(entry.mask, param.SubnetMask, 16);
-  entry.port = param.Port;
-  entry.ttl = param.TTL;
-  entry.tp = param.TimeStamp;
-  entry.prefix = prefix;
-  entry.faceId = -1;
+  // Name prefix;
+  // Block nameBlock(paramBlock.value() + sizeof(struct PARAMETER),
+  //                 paramBlock.value_size() - sizeof(struct PARAMETER));
+  // prefix.wireDecode(nameBlock);
 
-  std::cout << "finish parse" << std::endl
-            << prefix.toUri() << std::endl;
+  // entry.v4 = (param.V4 == 1)? 1 : 0;
+  // memcpy(entry.ip, param.IpAddr, 16);
+  // memcpy(entry.mask, param.SubnetMask, 16);
+  // entry.port = param.Port;
+  // entry.ttl = param.TTL;
+  // entry.tp = param.TimeStamp;
+  // entry.prefix = prefix;
+  // entry.faceId = -1;
+
+  // std::cout << "finish parse" << std::endl
+  //           << prefix.toUri() << std::endl;
 }
 
 void
@@ -135,28 +140,41 @@ NDServer::registerPrefix(const Name& prefix)
                                            bind(&NDServer::onInterest, this, _2), nullptr);
 }
 
+void 
+NDServer::onNack(const Interest& interest, const lp::Nack& nack)
+{
+  std::cout << "received Nack with reason " << nack.getReason()
+            << " for interest " << interest << std::endl;
+}
+
 void
 NDServer::onInterest(const Interest& request)
 {
   DBEntry entry;
-  parseInterest(request, entry);
-  uint8_t ipMatch[16] = {0};
-  for (int i = 0; i < 16; i++) {
-    ipMatch[i] = (entry.ip[i] & entry.mask[i]);
+  int ret = parseInterest(request, entry);
+  if (!ret) {
+    // arrival interest
+    return;
   }
+
+  // normal subscribe interest
+  // uint8_t ipMatch[16] = {0};
+  // for (int i = 0; i < 16; i++) {
+  //   ipMatch[i] = (entry.ip[i] & entry.mask[i]);
+  // }
 
   Buffer contentBuf;
   bool isUpdate = false;
   int counter = 0;
   for (auto it = m_db.begin(); it != m_db.end();) {
     const auto& item = *it;
-    // if there is an existing entry for the same client, update it
-    if (memcmp(entry.ip, item.ip, 16) == 0 && memcmp(entry.mask, item.mask, 16) == 0) {
-      isUpdate = true;
-      *it = entry;
-      it++;
-      continue;
-    }
+    // // if there is an existing entry for the same client, update it
+    // if (memcmp(entry.ip, item.ip, 16) == 0) {
+    //   isUpdate = true;
+    //   *it = entry;
+    //   it++;
+    //   continue;
+    // }
 
     using namespace std::chrono;
     milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
@@ -170,7 +188,6 @@ NDServer::onInterest(const Interest& request)
       result.V4 = item.v4? 1 : 0;
       memcpy(result.IpAddr, item.ip, 16);
       result.Port = item.port;
-      memcpy(result.SubnetMask, item.mask, 16);
 
       for (int i = 0; i < sizeof(struct RESULT); i++) {
         contentBuf.push_back(*((uint8_t*)&result + i));
@@ -185,11 +202,11 @@ NDServer::onInterest(const Interest& request)
         break;
     }
   }
-  if (!isUpdate) {
-    // create the entry for the requester if there is no matching entry in db
-    m_db.push_back(entry);
-    addRoute(getFaceUri(entry), entry);
-  }
+  // if (!isUpdate) {
+  //   // create the entry for the requester if there is no matching entry in db
+  //   m_db.push_back(entry);
+  //   addRoute(getFaceUri(entry), entry);
+  // }
 
   auto data = make_shared<Data>(request.getName());
   if (contentBuf.size() > 0) {

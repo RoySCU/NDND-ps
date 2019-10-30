@@ -13,7 +13,6 @@ class DBEntry
 public:
   bool v4;
   uint8_t ip[16];
-  uint8_t mask[16];
   uint16_t port;
   uint32_t ttl;
   uint64_t tp;
@@ -31,7 +30,8 @@ public:
   run();
 
 private:
-  void
+  // if subscribe interest, return 0; if arrival interest, return 1
+  int
   parseInterest(const Interest& request, DBEntry& entry);
 
   void
@@ -47,6 +47,8 @@ private:
   onInterest(const Interest& request);
   void
   onData(const Data& data, DBEntry& entry);
+  void 
+  onNack(const Interest& interest, const lp::Nack& nack);
 
 private:
   Name m_prefix;
