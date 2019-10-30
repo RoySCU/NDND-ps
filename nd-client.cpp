@@ -443,12 +443,12 @@ public:
 
     m_scheduler = new Scheduler(m_client->m_face.getIoService());
     m_client->registerSubPrefix();
+    m_client->sendArrivalInterest();
     loop();
   }
 
   void loop() {
-    m_client->sendArrivalInterest();
-    m_client->sendNDNDInterest();
+    //m_client->sendNDNDInterest();
     m_scheduler->schedule(time::seconds(1), [this] {
       loop();
     });

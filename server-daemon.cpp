@@ -58,6 +58,7 @@ NDServer::onSubData(const Data& data, DBEntry& entry)
 void
 NDServer::parseInterest(const Interest& interest, DBEntry& entry)
 {
+  std::cout << "Parsing Interest: " << interest << std::endl;
   // identify a Arrival Interest
   Name name = interest.getName();
   for (int i = 0; i < name.size(); i++)
