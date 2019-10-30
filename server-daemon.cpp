@@ -91,6 +91,7 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
 
       // AddRoute and Subscribe Back
       addRoute(entry.prefix.toUri(), entry);
+      return;
     }
   }
   auto paramBlock = interest.getApplicationParameters();
