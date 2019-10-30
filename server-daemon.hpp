@@ -32,11 +32,19 @@ public:
 
 private:
   void
-  onInterest(const Interest& request);
+  parseInterest(const Interest& request, DBEntry& entry);
+
+  void
+  subscribeBack(const std::string& url, DBEntry& entry);
+
+  void
+  onSubData(const Data& data, DBEntry& entry);
 
   void
   addRoute(const std::string& url, DBEntry& entry);
 
+  void
+  onInterest(const Interest& request);
   void
   onData(const Data& data, DBEntry& entry);
 

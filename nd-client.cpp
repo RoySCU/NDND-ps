@@ -26,7 +26,7 @@ public:
     : m_prefix("/test/01/02")
     , server_prefix("/ndn/nd")
     // , server_ip("127.0.0.1")
-    , server_ip("104.194.81.199")
+    , server_ip("131.179.176.110")
   {
   }
 public:
@@ -69,14 +69,72 @@ public:
       bind(&NDNDClient::onTimeout, this, _1));
   }
 
-  // This function should be called repeatedly
+  void onSubInterest(const Interest& subInterest)
+  {
+    // reply data with IP confirmation
+    Buffer contentBuf;
+    for (int i = 0; i < sizeof(m_IP); i++) {
+      contentBuf.push_back(*((uint8_t*)&m_IP + i));
+    }
+
+    auto data = make_shared<Data>(subInterest.getName());
+    if (contentBuf.size() > 0) {
+      data->setContent(contentBuf.get<uint8_t>(), contentBuf.size());
+    }
+    else {
+      return;
+    }
+
+    m_keyChain.sign(*data, security::SigningInfo(security::SigningInfo::SIGNER_TYPE_SHA256));
+    // security::SigningInfo signInfo(security::SigningInfo::SIGNER_TYPE_ID, m_options.identity);
+    // m_keyChain.sign(*m_data, signInfo);
+    data->setFreshnessPeriod(time::milliseconds(4000));
+    m_face.put(*data);
+    cout << "Publishing Data: " << data << endl;
+  }
+  
+  void sendArrivalInterest()
+  {
+    if (!is_ready)
+      return;
+
+    Name name("/ndn/nd/arrival");
+    name.append((uint8_t*)&m_IP, sizeof(m_IP));
+    name.append((uint8_t*)&m_port, sizeof(m_port));
+    name.append(m_prefix);
+    name.appendTimestamp();
+
+    Interest interest(name);
+    interest.setInterestLifetime(30_s);
+    interest.setMustBeFresh(true);
+    interest.setApplicationParameters(m_buffer, m_len);
+    interest.setNonce(4);
+    interest.setCanBePrefix(false); 
+
+    cout << "Arrival Interest: " << interest << endl;
+
+    m_face.expressInterest(interest, bind(&NDNDClient::onData, this, _1, _2), //no expectation
+                                     bind(&NDNDClient::onNack, this, _1, _2), //no expectation
+                                     bind(&NDNDClient::onTimeout, this, _1)); //no expectation
+  }
+
+  void registerSubPrefix()
+  {
+    Name name(m_prefix);
+    name.append("nd-info");
+    m_face.setInterestFilter(InterestFilter(name), bind(&NDNDClient::onSubInterest, this, _2), nullptr);
+    cout << "Register Prefix: " << name << endl;
+  }
+
+
   void sendNDNDInterest()
   {
     // Wait for face to ND Server to be registered in NFD
     if (!is_ready)
       return;
-
-    Interest interest(Name("/ndn/nd"));
+    Name name("/ndn/nd");
+    name.appendTimestamp();
+    Interest interest(name);
     interest.setInterestLifetime(30_s);
     interest.setMustBeFresh(true);
     make_NDND_interest_parameter();
@@ -84,16 +142,10 @@ public:
     interest.setNonce(4);
     interest.setCanBePrefix(false);
 
-    name::Component parameterDigest = name::Component::fromParametersSha256Digest(
-      util::Sha256::computeDigest(interest.getApplicationParameters().wire(), interest.getApplicationParameters().size()));
-
-    const_cast<Name&>(interest.getName()).append(parameterDigest);
-
-    m_face.expressInterest(
-      interest,
-      bind(&NDNDClient::onData, this, _1, _2),
-      bind(&NDNDClient::onNack, this, _1, _2),
-      bind(&NDNDClient::onTimeout, this, _1));
+    m_face.expressInterest(interest,
+                           bind(&NDNDClient::onData, this, _1, _2),
+                           bind(&NDNDClient::onNack, this, _1, _2),
+                           bind(&NDNDClient::onTimeout, this, _1));
   }
 
 // private:
@@ -390,10 +442,12 @@ public:
                               m_options.server_ip);
 
     m_scheduler = new Scheduler(m_client->m_face.getIoService());
+    m_client->registerSubPrefix();
     loop();
   }
 
   void loop() {
+    m_client->sendArrivalInterest();
     m_client->sendNDNDInterest();
     m_scheduler->schedule(time::seconds(1), [this] {
       loop();

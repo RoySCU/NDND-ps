@@ -25,9 +25,65 @@ getFaceUri(const DBEntry& entry)
   return result;
 }
 
-static void
-parseInterest(const Interest& interest, DBEntry& entry)
+void
+NDServer::subscribeBack(const std::string& url, DBEntry& entry)
 {
+  Name name(url);
+  std::cout << "Subscribe Back to " << url << std::endl;
+  name.append("nd-info");
+  name.appendTimestamp();
+  Interest interest(name);
+  interest.setInterestLifetime(30_s);
+  interest.setMustBeFresh(true);
+  interest.setNonce(4);
+  interest.setCanBePrefix(false);
+
+  m_face.expressInterest(interest,
+                         std::bind(&NDServer::onSubData, this, _2, entry),
+                         nullptr,
+                         nullptr);
+  std::cout << "Subscribe Back Interest: " << interest << std::endl;
+}
+
+void
+NDServer::onSubData(const Data& data, DBEntry& entry)
+{
+  std::cout << "Data Publishing from " << entry.prefix.toUri() << std::endl
+            << data << std::endl;
+
+  auto ptr = data.getContent().value();
+  memcpy(entry.ip, ptr, sizeof(entry.ip));
+}
+
+void
+NDServer::parseInterest(const Interest& interest, DBEntry& entry)
+{
+  // identify a Arrival Interest
+  Name name = interest.getName();
+  for (int i = 0; i < name.size(); i++)
+  {
+    Name::Component component = name.get(i);
+    int ret = component.compare(Name::Component("arrival"));
+    if (ret == 0)
+    {
+      Name::Component comp; Block ip, port;
+      // getIP
+      comp = name.get(i + 1);
+      comp.wireDecode(ip);
+      memcpy(entry.ip, ip.value(), sizeof(entry.ip));
+      //getPort
+      comp = name.get(i + 2);
+      comp.wireDecode(port);
+      memcpy(&entry.port, port.value(), sizeof(entry.ip));
+      //getName
+      comp = name.get(i + 3);
+      entry.prefix = Name(comp);
+      std::cout << "Arrival, Name is: " << entry.prefix.toUri() << std::endl;
+
+      // AddRoute and Subscribe Back
+      addRoute(entry.prefix.toUri(), entry);
+    }
+  }
   auto paramBlock = interest.getApplicationParameters();
 
   struct PARAMETER param;
