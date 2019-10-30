@@ -83,7 +83,7 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
       Name prefix;
       uint64_t name_size = comp.toNumber();
       for (int j = 0; j < name_size; j++) {
-        prefix.append(name.get(begin + j));
+        prefix.append(name.get(begin + j + 1));
       }
       entry.prefix = prefix;
 
