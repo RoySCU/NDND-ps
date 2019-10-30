@@ -67,6 +67,7 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
     int ret = component.compare(Name::Component("arrival"));
     if (ret == 0)
     {
+      std::cout << "arrival" << std::endl;
       Name::Component comp; Block ip, port;
       // getIP
       comp = name.get(i + 1);
