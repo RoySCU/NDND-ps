@@ -90,7 +90,7 @@ public:
     // m_keyChain.sign(*m_data, signInfo);
     data->setFreshnessPeriod(time::milliseconds(4000));
     m_face.put(*data);
-    cout << "Publishing Data: " << data << endl;
+    cout << "Publishing Data: " << *data << endl;
   }
   
   void sendArrivalInterest()
@@ -433,7 +433,7 @@ public:
 
   void loop() {
     m_client->sendSubInterest();
-    m_scheduler->schedule(time::seconds(1), [this] {
+    m_scheduler->schedule(time::seconds(3), [this] {
       loop();
     });
   }

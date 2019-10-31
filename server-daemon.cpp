@@ -43,7 +43,7 @@ NDServer::subscribeBack(const std::string& url, DBEntry& entry)
                          std::bind(&NDServer::onNack, this, _1, _2),
                          nullptr);
   std::cout << "Subscribe Back Interest: " << interest << std::endl;
-  m_scheduler->schedule(time::seconds(3), [this, url, &entry] {
+  m_scheduler->schedule(time::seconds(10), [this, url, &entry] {
       subscribeBack(url, entry);
   });
 }
