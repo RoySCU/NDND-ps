@@ -43,7 +43,7 @@ NDServer::subscribeBack(const std::string& url, DBEntry& entry)
                          std::bind(&NDServer::onNack, this, _1, _2),
                          nullptr);
   std::cout << "Subscribe Back Interest: " << interest << std::endl;
-  m_scheduler->schedule(time::seconds(1), [this, &url, &entry] {
+  m_scheduler->schedule(time::seconds(3), [this, url, &entry] {
       subscribeBack(url, entry);
   });
 }
@@ -228,7 +228,7 @@ NDServer::onInterest(const Interest& request)
   // m_keyChain.sign(*m_data, signInfo);
   data->setFreshnessPeriod(time::milliseconds(4000));
   m_face.put(*data);
-  std::cout << "Putting Data back: " << *data << std::endl;
+  std::cout << "Putting Data back: " << std::endl << *data << std::endl;
 }
 
 void
