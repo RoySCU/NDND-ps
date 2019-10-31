@@ -173,6 +173,13 @@ public:
 
       m_uri_to_prefix[ss.str()] = name.toUri();
       cout << "URI: " << ss.str() << endl;
+
+      // Do not register route to myself
+      if (strcmp(inet_ntoa(*(in_addr*)(pResult->IpAddr)), inet_ntoa(m_IP)) == 0) {
+        cout << "My IP address returned" << endl;
+        continue;
+      }
+
       addFace(ss.str());
       setStrategy(name.toUri(), BEST_ROUTE);
     }
@@ -187,23 +194,6 @@ public:
   void onTimeout(const Interest& interest)
   {
     std::cout << "Timeout " << interest << std::endl;
-  }
-
-  void make_NDND_interest_parameter()
-  {
-    auto pParam = reinterpret_cast<PPARAMETER>(m_buffer);
-    m_len = sizeof(PARAMETER);
-
-    pParam->V4 = 1;
-    memcpy(pParam->IpAddr, &m_IP, sizeof(in_addr_t));
-    pParam->Port = m_port;
-    memcpy(pParam->SubnetMask, &m_submask, sizeof(in_addr_t));
-    pParam->TTL = 30 * 1000; //ms
-    pParam->TimeStamp = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
-
-    Block block = m_prefix.wireEncode();
-    memcpy(pParam->NamePrefix, block.begin().base(), block.end() - block.begin());
-    m_len += block.end() - block.begin();
   }
 
   void onRegisterRouteDataReply(const Interest& interest, const Data& data,

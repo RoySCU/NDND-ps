@@ -4,6 +4,7 @@
 
 #include <ndn-cxx/name.hpp>
 #include <ndn-cxx/face.hpp>
+#include <ndn-cxx/util/scheduler.hpp>
 
 namespace ndn {
 namespace ndnd {
@@ -54,6 +55,7 @@ private:
   Name m_prefix;
   Face m_face;
   KeyChain m_keyChain;
+  Scheduler *m_scheduler;
   std::list<DBEntry> m_db;
 };
 

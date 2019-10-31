@@ -43,6 +43,9 @@ NDServer::subscribeBack(const std::string& url, DBEntry& entry)
                          std::bind(&NDServer::onNack, this, _1, _2),
                          nullptr);
   std::cout << "Subscribe Back Interest: " << interest << std::endl;
+  m_scheduler->schedule(time::seconds(1), [this, &url, &entry] {
+      subscribeBack(url, entry);
+  });
 }
 
 void
@@ -129,6 +132,7 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
 void
 NDServer::run()
 {
+  m_scheduler = new Scheduler(m_face.getIoService());
   m_face.processEvents();
 }
 
