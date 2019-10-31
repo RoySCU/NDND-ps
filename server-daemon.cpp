@@ -148,17 +148,18 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
             << " for interest " << interest << std::endl;
   // Finding
   Name name = interest.getName();
-  DBEntry nackEntry;
+  auto removeEntry = m_db.begin();
   for (auto it = m_db.begin(); it != m_db.end();) {
     bool is_Prefix = it->prefix.isPrefixOf(name);
     if (is_Prefix) {
       std::cout << "Nack from " << it->prefix.toUri() << std::endl;
-      it = m_db.erase(it);
+      removeEntry = it;
       std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
       break;
     }
     ++it;
   }
+  m_db.erase(removeEntry);
 }
 
 void
