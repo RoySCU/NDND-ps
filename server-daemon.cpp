@@ -140,18 +140,18 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
   std::cout << "received Nack with reason " << nack.getReason()
             << " for interest " << interest << std::endl;
   // Finding
-  Name name = interest.getName();
-  DBEntry nackEntry;
-  for (auto it = m_db.begin(); it != m_db.end();) {
-    bool is_Prefix = it->prefix.isPrefixOf(name);
-    if (is_Prefix) {
-      std::cout << "Nack from" << it->prefix.toUri() << std::endl;
-      it = m_db.erase(it);
-      std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
-      break;
-    }
-    ++it;
-  }
+  // Name name = interest.getName();
+  // DBEntry nackEntry;
+  // for (auto it = m_db.begin(); it != m_db.end();) {
+  //   bool is_Prefix = it->prefix.isPrefixOf(name);
+  //   if (is_Prefix) {
+  //     std::cout << "Nack from " << it->prefix.toUri() << std::endl;
+  //     it = m_db.erase(it);
+  //     std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
+  //     break;
+  //   }
+  //   ++it;
+  // }
 }
 
 void
