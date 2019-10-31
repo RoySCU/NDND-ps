@@ -26,36 +26,50 @@ getFaceUri(const DBEntry& entry)
 }
 
 void
-NDServer::subscribeBack(const std::string& url, DBEntry& entry)
+NDServer::subscribeBack(const std::string& url)
 {
   Name name(url);
-  std::cout << "Subscribe Back to " << url << std::endl;
-  name.append("nd-info");
-  name.appendTimestamp();
-  Interest interest(name);
-  interest.setInterestLifetime(30_s);
-  interest.setMustBeFresh(true);
-  interest.setNonce(4);
-  interest.setCanBePrefix(false);
+  // Check if entry exists
+  for (auto it = m_db.begin(); it != m_db.end();) {
+    bool is_Prefix = it->prefix.isPrefixOf(name);
+    if (is_Prefix) {
+      std::cout << "Subscribe Back to " << url << std::endl;
+      name.append("nd-info");
+      name.appendTimestamp();
+      Interest interest(name);
+      interest.setInterestLifetime(30_s);
+      interest.setMustBeFresh(true);
+      interest.setNonce(4);
+      interest.setCanBePrefix(false);
 
-  m_face.expressInterest(interest,
-                         std::bind(&NDServer::onSubData, this, _2, entry),
-                         std::bind(&NDServer::onNack, this, _1, _2),
-                         nullptr);
-  std::cout << "Subscribe Back Interest: " << interest << std::endl;
-  m_scheduler->schedule(time::seconds(10), [this, url, &entry] {
-      subscribeBack(url, entry);
-  });
+      m_face.expressInterest(interest,
+                            std::bind(&NDServer::onSubData, this, _2),
+                            std::bind(&NDServer::onNack, this, _1, _2),
+                            nullptr);
+      std::cout << "Subscribe Back Interest: " << interest << std::endl;
+      m_scheduler->schedule(time::seconds(10), [this, url] {
+          subscribeBack(url);
+      });
+    }
+  }
 }
 
 void
-NDServer::onSubData(const Data& data, DBEntry& entry)
+NDServer::onSubData(const Data& data)
 {
-  std::cout << "Data Publishing from " << entry.prefix.toUri() << std::endl
-            << data << std::endl;
-
-  auto ptr = data.getContent().value();
-  memcpy(entry.ip, ptr, sizeof(entry.ip));
+  // Finding
+  Name name = data.getName();
+  for (auto it = m_db.begin(); it != m_db.end();) {
+    bool is_Prefix = it->prefix.isPrefixOf(name);
+    if (is_Prefix) {
+      std::cout << "Data Publishing from " << it->prefix.toUri() << std::endl
+                << data << std::endl;
+      auto ptr = data.getContent().value();
+      memcpy(it->ip, ptr, sizeof(it->ip));
+      std::cout << "Record Updated/Confirmed" << std::endl;
+      return;
+    }
+  }
 }
 
 int
@@ -95,38 +109,12 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
       // AddRoute and Subscribe Back
       m_db.push_back(entry);
       addRoute(getFaceUri(entry), entry);
-      subscribeBack(entry.prefix.toUri(), entry);
+      subscribeBack(entry.prefix.toUri());
       return 1;
     }
   }
   // then it would be a Subscribe Interest
   return 0;
-
-  // auto paramBlock = interest.getApplicationParameters();
-
-  // struct PARAMETER param;
-  // memcpy(&param, paramBlock.value(), sizeof(struct PARAMETER));
-
-  // for (int i = 0; i < paramBlock.value_size(); i++) {
-  //   printf("%02x", paramBlock.value()[i]);
-  // }
-
-  // Name prefix;
-  // Block nameBlock(paramBlock.value() + sizeof(struct PARAMETER),
-  //                 paramBlock.value_size() - sizeof(struct PARAMETER));
-  // prefix.wireDecode(nameBlock);
-
-  // entry.v4 = (param.V4 == 1)? 1 : 0;
-  // memcpy(entry.ip, param.IpAddr, 16);
-  // memcpy(entry.mask, param.SubnetMask, 16);
-  // entry.port = param.Port;
-  // entry.ttl = param.TTL;
-  // entry.tp = param.TimeStamp;
-  // entry.prefix = prefix;
-  // entry.faceId = -1;
-
-  // std::cout << "finish parse" << std::endl
-  //           << prefix.toUri() << std::endl;
 }
 
 void
@@ -149,6 +137,18 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
 {
   std::cout << "received Nack with reason " << nack.getReason()
             << " for interest " << interest << std::endl;
+  // Finding
+  Name name = interest.getName();
+  DBEntry nackEntry;
+  for (auto it = m_db.begin(); it != m_db.end();) {
+    bool is_Prefix = it->prefix.isPrefixOf(name);
+    if (is_Prefix) {
+      std::cout << "Nack from" << it->prefix.toUri() << std::endl;
+      it = m_db.erase(it);
+      std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
+      break;
+    }
+  }
 }
 
 void
@@ -161,25 +161,12 @@ NDServer::onInterest(const Interest& request)
     return;
   }
   std::cout << "Not Arrival interest " << std::endl;
-  // normal subscribe interest
-  // uint8_t ipMatch[16] = {0};
-  // for (int i = 0; i < 16; i++) {
-  //   ipMatch[i] = (entry.ip[i] & entry.mask[i]);
-  // }
 
   Buffer contentBuf;
   bool isUpdate = false;
   int counter = 0;
   for (auto it = m_db.begin(); it != m_db.end();) {
     const auto& item = *it;
-    // // if there is an existing entry for the same client, update it
-    // if (memcmp(entry.ip, item.ip, 16) == 0) {
-    //   isUpdate = true;
-    //   *it = entry;
-    //   it++;
-    //   continue;
-    // }
-
     using namespace std::chrono;
     milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
     if (item.tp + item.ttl < ms.count()) {
@@ -303,7 +290,7 @@ NDServer::onData(const Data& data, DBEntry& entry)
     }
   }
   else if (faceDestroyPrefix.isPrefixOf(data.getName())) {
-
+    std::cout << "Face destroyed" << std::endl;
   }
 }
 

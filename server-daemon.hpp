@@ -36,10 +36,10 @@ private:
   parseInterest(const Interest& request, DBEntry& entry);
 
   void
-  subscribeBack(const std::string& url, DBEntry& entry);
+  subscribeBack(const std::string& url);
 
   void
-  onSubData(const Data& data, DBEntry& entry);
+  onSubData(const Data& data);
 
   void
   addRoute(const std::string& url, DBEntry& entry);
