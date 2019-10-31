@@ -26,7 +26,7 @@ public:
     : m_prefix("/test/01/02")
     , server_prefix("/ndn/nd")
     // , server_ip("127.0.0.1")
-    , server_ip("192.168.0.9")
+    , server_ip("131.179.176.110")
   {
   }
 public:

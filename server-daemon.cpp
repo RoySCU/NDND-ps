@@ -91,7 +91,7 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
 
       // AddRoute and Subscribe Back
       m_db.push_back(entry);
-      addRoute(entry.prefix.toUri(), entry);
+      addRoute(getFaceUri(entry), entry);
       subscribeBack(entry.prefix.toUri(), entry);
       return 1;
     }
@@ -229,8 +229,7 @@ NDServer::addRoute(const std::string& url, DBEntry& entry)
   auto Interest = prepareFaceCreationInterest(url, m_keyChain);
   m_face.expressInterest(Interest,
                          std::bind(&NDServer::onData, this, _2, entry),
-                         nullptr,
-                         nullptr);
+                         nullptr, nullptr);
 }
 
 void
