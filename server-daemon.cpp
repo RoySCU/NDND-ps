@@ -73,6 +73,8 @@ NDServer::onSubData(const Data& data)
                 << data << std::endl;
       auto ptr = data.getContent().value();
       memcpy(it->ip, ptr, sizeof(it->ip));
+      // update timestamp
+      memcpy(&it->tp, name.get(it->prefix.size()).value(), sizeof(it->tp));
       std::cout << "Record Updated/Confirmed" << std::endl;
       return;
     }
@@ -129,6 +131,7 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
 void
 NDServer::run()
 {
+  m_ttl = 30 * 1000;
   m_scheduler = new Scheduler(m_face.getIoService());
   m_face.processEvents();
 }
@@ -154,7 +157,7 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
     if (is_Prefix) {
       std::cout << "Nack from " << it->prefix.toUri() << std::endl;
       removeEntry = it;
-      std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
+      std::cout << "Erasing... " << it->prefix.toUri() << std::endl;
       break;
     }
     ++it;

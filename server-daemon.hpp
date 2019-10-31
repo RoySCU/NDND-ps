@@ -55,6 +55,7 @@ private:
 
 private:
   Name m_prefix;
+  uint64_t m_ttl;
   Face m_face;
   KeyChain m_keyChain;
   Scheduler *m_scheduler;

@@ -105,7 +105,6 @@ public:
     Interest interest(name);
     interest.setInterestLifetime(30_s);
     interest.setMustBeFresh(true);
-    interest.setApplicationParameters(m_buffer, m_len);
     interest.setNonce(4);
     interest.setCanBePrefix(false); 
 
@@ -134,8 +133,6 @@ public:
     Interest interest(name);
     interest.setInterestLifetime(30_s);
     interest.setMustBeFresh(true);
-    //make_NDND_interest_parameter();
-    interest.setApplicationParameters(m_buffer, m_len);
     interest.setNonce(4);
     interest.setCanBePrefix(false);
 
