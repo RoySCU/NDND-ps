@@ -224,7 +224,7 @@ NDServer::onInterest(const Interest& request)
   // m_keyChain.sign(*m_data, signInfo);
   data->setFreshnessPeriod(time::milliseconds(4000));
   m_face.put(*data);
-  std::cout << "Putting Data back: " << data << std::endl;
+  std::cout << "Putting Data back: " << *data << std::endl;
 }
 
 void
