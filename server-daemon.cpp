@@ -43,9 +43,10 @@ NDServer::subscribeBack(const std::string& url)
       // wait until entry confirmed
       if (!it->confirmed) {
         std::cout << "Entry not confirmed, try again 1 sec later: " << interest << std::endl;
-        m_scheduler->schedule(time::seconds(2), [this, url] {
+        m_scheduler->schedule(time::seconds(1), [this, url] {
           subscribeBack(url);
-      });
+        });
+        return;
       }
       m_face.expressInterest(interest,
                             std::bind(&NDServer::onSubData, this, _2),
