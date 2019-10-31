@@ -152,11 +152,11 @@ NDServer::onInterest(const Interest& request)
 {
   DBEntry entry;
   int ret = parseInterest(request, entry);
-  if (!ret) {
+  if (ret) {
     // arrival interest
     return;
   }
-
+  std::cout << "Not Arrival interest " << std::endl;
   // normal subscribe interest
   // uint8_t ipMatch[16] = {0};
   // for (int i = 0; i < 16; i++) {
@@ -196,12 +196,15 @@ NDServer::onInterest(const Interest& request)
       for (int i =0; i < block.size(); i++) {
         contentBuf.push_back(*(block.wire() + i));
       }
+      std::cout << "Pushing Back one record " << std::endl;
       counter++;
       ++it;
       if (counter > 10)
         break;
     }
   }
+
+  
   // if (!isUpdate) {
   //   // create the entry for the requester if there is no matching entry in db
   //   m_db.push_back(entry);
@@ -221,6 +224,7 @@ NDServer::onInterest(const Interest& request)
   // m_keyChain.sign(*m_data, signInfo);
   data->setFreshnessPeriod(time::milliseconds(4000));
   m_face.put(*data);
+  std::cout << "Putting Data back: " << data << std::endl;
 }
 
 void
