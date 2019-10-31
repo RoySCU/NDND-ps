@@ -29,7 +29,6 @@ void
 NDServer::subscribeBack(const std::string& url)
 {
   Name name(url);
-  // Check if entry exists
   for (auto it = m_db.begin(); it != m_db.end();) {
     bool is_Prefix = it->prefix.isPrefixOf(name);
     if (is_Prefix) {
@@ -41,7 +40,10 @@ NDServer::subscribeBack(const std::string& url)
       interest.setMustBeFresh(true);
       interest.setNonce(4);
       interest.setCanBePrefix(false);
-
+      // wait until entry confirmed
+      if (!it->confirmed) {
+        sleep(0.5);
+      }
       m_face.expressInterest(interest,
                             std::bind(&NDServer::onSubData, this, _2),
                             std::bind(&NDServer::onNack, this, _1, _2),
@@ -109,6 +111,7 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
       std::cout << "Arrival, Name is: " << entry.prefix.toUri() << std::endl;
 
       // AddRoute and Subscribe Back
+      entry.confirmed = false;
       m_db.push_back(entry);
       addRoute(getFaceUri(entry), entry);
       subscribeBack(entry.prefix.toUri());
@@ -140,18 +143,18 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
   std::cout << "received Nack with reason " << nack.getReason()
             << " for interest " << interest << std::endl;
   // Finding
-  // Name name = interest.getName();
-  // DBEntry nackEntry;
-  // for (auto it = m_db.begin(); it != m_db.end();) {
-  //   bool is_Prefix = it->prefix.isPrefixOf(name);
-  //   if (is_Prefix) {
-  //     std::cout << "Nack from " << it->prefix.toUri() << std::endl;
-  //     it = m_db.erase(it);
-  //     std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
-  //     break;
-  //   }
-  //   ++it;
-  // }
+  Name name = interest.getName();
+  DBEntry nackEntry;
+  for (auto it = m_db.begin(); it != m_db.end();) {
+    bool is_Prefix = it->prefix.isPrefixOf(name);
+    if (is_Prefix) {
+      std::cout << "Nack from " << it->prefix.toUri() << std::endl;
+      it = m_db.erase(it);
+      std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
+      break;
+    }
+    ++it;
+  }
 }
 
 void
@@ -260,6 +263,16 @@ NDServer::onData(const Data& data, DBEntry& entry)
       std::cout << "Origin: " << origin << std::endl;
       std::cout << "Route cost: " << route_cost << std::endl;
       std::cout << "Flags: " << flags << std::endl;
+
+      // find entry and confirm
+      for (auto it = m_db.begin(); it != m_db.end();) {
+        bool is_Prefix = it->prefix.isPrefixOf(route_name);
+        if (is_Prefix) {
+          it->confirmed = true;
+          break;
+        }
+        ++it;
+      }
     }
     else {
       std::cout << "\nRegistration of route failed." << std::endl;

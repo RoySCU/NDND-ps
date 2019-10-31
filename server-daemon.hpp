@@ -13,6 +13,8 @@ class DBEntry
 {
 public:
   bool v4;
+  // An entry is not confirmed until route registeration succeed
+  bool confirmed;
   uint8_t ip[16];
   uint16_t port;
   uint32_t ttl;
