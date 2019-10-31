@@ -51,6 +51,7 @@ NDServer::subscribeBack(const std::string& url)
           subscribeBack(url);
       });
     }
+    ++it;
   }
 }
 
@@ -69,6 +70,7 @@ NDServer::onSubData(const Data& data)
       std::cout << "Record Updated/Confirmed" << std::endl;
       return;
     }
+    ++it;
   }
 }
 
@@ -148,6 +150,7 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
       std::cout << "Erasing..." << it->prefix.toUri() << std::endl;
       break;
     }
+    ++it;
   }
 }
 
