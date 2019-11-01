@@ -227,7 +227,7 @@ NDServer::onInterest(const Interest& request)
 void
 NDServer::removeRoute(DBEntry& entry)
 {
-  auto Interest = prepareFaceDestroyInterest(entry.faceId, m_keyChain);
+  auto Interest = prepareRibUnregisterInterest(entry.prefix, entry.faceId, m_keyChain);
   m_face.expressInterest(Interest,
                          std::bind(&NDServer::onData, this, _2, entry),
                          nullptr, nullptr);
