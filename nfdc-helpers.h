@@ -42,7 +42,7 @@ prepareRibUnregisterInterest(const Name& route_name, int face_id, KeyChain& keyc
                            int cost = 0)
 {
   Name name("/localhost/nfd/rib/unregister");
-    cout << "face id = " << face_id << endl;
+   std::cout << "face id = " << face_id << std::endl;
   Block control_params = make_rib_interest_parameter(route_name, face_id);
   name.append(control_params);
 
@@ -87,7 +87,7 @@ prepareFaceCreationInterest(const std::string& uri, KeyChain& keychain)
 static Interest
 prepareFaceDestroyInterest(int face_id, KeyChain& keychain)
 {
-  cout << "face id = " << face_id << endl;
+  std::cout << "face id = " << face_id << std::endl;
   Name name("/localhost/nfd/faces/destroy");
   auto control_block = makeEmptyBlock(CONTROL_PARAMETERS);
   control_block.push_back(makeNonNegativeIntegerBlock(FACE_ID, face_id));
