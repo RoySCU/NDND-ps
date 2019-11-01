@@ -47,6 +47,9 @@ private:
   addRoute(const std::string& url, DBEntry& entry);
 
   void
+  removeRoute(DBEntry& entry);
+
+  void
   onInterest(const Interest& request);
   void
   onData(const Data& data, DBEntry& entry);

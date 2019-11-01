@@ -12,7 +12,7 @@ namespace ndn {
 namespace ndnd {
 
 static Block
-make_rib_register_interest_parameter(const Name& route_name, int face_id)
+make_rib_interest_parameter(const Name& route_name, int face_id)
 {
   auto block = makeEmptyBlock(CONTROL_PARAMETERS);
   Block route_name_block = route_name.wireEncode();
@@ -38,11 +38,26 @@ make_rib_register_interest_parameter(const Name& route_name, int face_id)
 }
 
 static Interest
+prepareRibUnregisterInterest(const Name& route_name, int face_id, KeyChain& keychain,
+                           int cost = 0)
+{
+  Name name("/localhost/nfd/rib/unregister");
+  Block control_params = make_rib_interest_parameter(route_name, face_id);
+  name.append(control_params);
+
+  security::CommandInterestSigner signer(keychain);
+  Interest interest = signer.makeCommandInterest(name);
+  interest.setMustBeFresh(true);
+  interest.setCanBePrefix(false);
+  return interest;
+}
+
+static Interest
 prepareRibRegisterInterest(const Name& route_name, int face_id, KeyChain& keychain,
                            int cost = 0)
 {
   Name name("/localhost/nfd/rib/register");
-  Block control_params = make_rib_register_interest_parameter(route_name, face_id);
+  Block control_params = make_rib_interest_parameter(route_name, face_id);
   name.append(control_params);
 
   security::CommandInterestSigner signer(keychain);
@@ -69,7 +84,7 @@ prepareFaceCreationInterest(const std::string& uri, KeyChain& keychain)
 }
 
 static Interest
-prepareFaceDestroyInterest(int face_id, KeyChain& keychain)
+prepareFaceDestoryInterest(int face_id, KeyChain& keychain)
 {
   Name name("/localhost/nfd/faces/destroy");
   auto control_block = makeEmptyBlock(CONTROL_PARAMETERS);

@@ -162,6 +162,13 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
     }
     ++it;
   }
+
+  std::cout << "Removing Route and Destory Face " << std::endl;
+  auto Interest = prepareRibUnregisterInterest(removeEntry->prefix, removeEntry->faceId, m_keyChain);
+  m_face.expressInterest(Interest,
+                         std::bind(&NDServer::onData, this, _2, *removeEntry),
+                         nullptr, nullptr); 
+
   m_db.erase(removeEntry);
 }
 
@@ -233,6 +240,15 @@ NDServer::onInterest(const Interest& request)
 }
 
 void
+NDServer::removeRoute(DBEntry& entry)
+{
+  auto Interest = prepareFaceDestoryInterest(entry.faceId, m_keyChain);
+  m_face.expressInterest(Interest,
+                         std::bind(&NDServer::onData, this, _2, entry),
+                         nullptr, nullptr);
+}
+
+void
 NDServer::addRoute(const std::string& url, DBEntry& entry)
 {
   auto Interest = prepareFaceCreationInterest(url, m_keyChain);
@@ -245,6 +261,7 @@ void
 NDServer::onData(const Data& data, DBEntry& entry)
 {
   Name ribRegisterPrefix("/localhost/nfd/rib/register");
+  Name ribUnregisterPrefix("/localhost/nfd/rib/unregister");
   Name faceCreationPrefix("/localhost/nfd/faces/create");
   Name faceDestroyPrefix("/localhost/nfd/faces/destroy");
   if (ribRegisterPrefix.isPrefixOf(data.getName())) {
@@ -287,6 +304,24 @@ NDServer::onData(const Data& data, DBEntry& entry)
       std::cout << "Status text: " << responseTxt << std::endl;
     }
   }
+  else if (ribUnregisterPrefix.isPrefixOf(data.getName())) {
+    Block response_block = data.getContent().blockFromValue();
+    response_block.parse();
+    int responseCode = readNonNegativeIntegerAs<int>(response_block.get(STATUS_CODE));
+    std::string responseTxt = readString(response_block.get(STATUS_TEXT));
+    if (responseCode == OK) {
+      std::cout << "Route removal success" << std::endl;
+      // remove the face
+      auto Interest = prepareFaceDestoryInterest(entry.faceId, m_keyChain);
+      m_face.expressInterest(Interest,
+                             std::bind(&NDServer::onData, this, _2, entry),
+                             nullptr, nullptr); 
+    }
+    else {
+      std::cout << "Removal of route failed." << std::endl;
+      std::cout << "Status text: " << responseTxt << std::endl;
+    }
+  }
   else if (faceCreationPrefix.isPrefixOf(data.getName())) {
     Block response_block = data.getContent().blockFromValue();
     response_block.parse();
@@ -315,6 +350,15 @@ NDServer::onData(const Data& data, DBEntry& entry)
   }
   else if (faceDestroyPrefix.isPrefixOf(data.getName())) {
     std::cout << "Face destroyed" << std::endl;
+    for (auto it = m_db.begin(); it != m_db.end();) {
+      bool is_Prefix = it->prefix.isPrefixOf(entry.prefix);
+      if (is_Prefix) {
+        it = m_db.erase(it);
+        break;
+      }
+      ++it;
+    }
+
   }
 }
 
