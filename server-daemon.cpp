@@ -157,19 +157,11 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
     if (is_Prefix) {
       std::cout << "Nack from " << it->prefix.toUri() << std::endl;
       removeEntry = it;
-      std::cout << "Erasing... " << it->prefix.toUri() << std::endl;
       break;
     }
     ++it;
   }
-
-  std::cout << "Removing Route and Destroy Face " << std::endl;
-  auto Interest = prepareRibUnregisterInterest(removeEntry->prefix, removeEntry->faceId, m_keyChain);
-  m_face.expressInterest(Interest,
-                         std::bind(&NDServer::onData, this, _2, *removeEntry),
-                         nullptr, nullptr); 
-
-  m_db.erase(removeEntry);
+  removeRoute(*removeEntry);
 }
 
 void
@@ -215,13 +207,6 @@ NDServer::onInterest(const Interest& request)
         break;
     }
   }
-
-  
-  // if (!isUpdate) {
-  //   // create the entry for the requester if there is no matching entry in db
-  //   m_db.push_back(entry);
-  //   addRoute(getFaceUri(entry), entry);
-  // }
 
   auto data = make_shared<Data>(request.getName());
   if (contentBuf.size() > 0) {
@@ -353,6 +338,7 @@ NDServer::onData(const Data& data, DBEntry& entry)
     for (auto it = m_db.begin(); it != m_db.end();) {
       bool is_Prefix = it->prefix.isPrefixOf(entry.prefix);
       if (is_Prefix) {
+        std::cout << "Erasing... " << it->prefix.toUri() << std::endl;
         it = m_db.erase(it);
         break;
       }
