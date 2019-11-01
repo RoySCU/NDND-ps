@@ -163,7 +163,7 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
     ++it;
   }
 
-  std::cout << "Removing Route and Destory Face " << std::endl;
+  std::cout << "Removing Route and Destroy Face " << std::endl;
   auto Interest = prepareRibUnregisterInterest(removeEntry->prefix, removeEntry->faceId, m_keyChain);
   m_face.expressInterest(Interest,
                          std::bind(&NDServer::onData, this, _2, *removeEntry),
@@ -242,7 +242,7 @@ NDServer::onInterest(const Interest& request)
 void
 NDServer::removeRoute(DBEntry& entry)
 {
-  auto Interest = prepareFaceDestoryInterest(entry.faceId, m_keyChain);
+  auto Interest = prepareFaceDestroyInterest(entry.faceId, m_keyChain);
   m_face.expressInterest(Interest,
                          std::bind(&NDServer::onData, this, _2, entry),
                          nullptr, nullptr);
@@ -312,7 +312,7 @@ NDServer::onData(const Data& data, DBEntry& entry)
     if (responseCode == OK) {
       std::cout << "Route removal success" << std::endl;
       // remove the face
-      auto Interest = prepareFaceDestoryInterest(entry.faceId, m_keyChain);
+      auto Interest = prepareFaceDestroyInterest(entry.faceId, m_keyChain);
       m_face.expressInterest(Interest,
                              std::bind(&NDServer::onData, this, _2, entry),
                              nullptr, nullptr); 

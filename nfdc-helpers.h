@@ -84,7 +84,7 @@ prepareFaceCreationInterest(const std::string& uri, KeyChain& keychain)
 }
 
 static Interest
-prepareFaceDestoryInterest(int face_id, KeyChain& keychain)
+prepareFaceDestroyInterest(int face_id, KeyChain& keychain)
 {
   Name name("/localhost/nfd/faces/destroy");
   auto control_block = makeEmptyBlock(CONTROL_PARAMETERS);
