@@ -161,7 +161,11 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
     }
     ++it;
   }
-  removeRoute(*removeEntry);
+        auto Interest = prepareFaceDestroyInterest(removeEntry->faceId, m_keyChain);
+      m_face.expressInterest(Interest,
+                             std::bind(&NDServer::onData, this, _2, *removeEntry),
+                             nullptr, nullptr); 
+ // removeRoute(*removeEntry);
 }
 
 void
