@@ -42,9 +42,14 @@ private:
 
   void
   onSubData(const Data& data);
+  void
+  onSubTimeout(const Interest& interest);
 
   void
   addRoute(const std::string& url, DBEntry& entry);
+
+  DBEntry&
+  findEntry(const Name& name);
 
   void
   removeRoute(DBEntry& entry);

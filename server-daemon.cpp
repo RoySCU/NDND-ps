@@ -25,6 +25,18 @@ getFaceUri(const DBEntry& entry)
   return result;
 }
 
+DBEntry&
+NDServer::findEntry(const Name& name)
+{
+  for (auto it = m_db.begin(); it != m_db.end();) {
+    bool is_Prefix = it->prefix.isPrefixOf(name);
+    if (is_Prefix) {
+      return *it;
+    }
+    ++it;
+  }
+}
+
 void
 NDServer::subscribeBack(const std::string& url)
 {
@@ -51,7 +63,7 @@ NDServer::subscribeBack(const std::string& url)
       m_face.expressInterest(interest,
                             std::bind(&NDServer::onSubData, this, _2),
                             std::bind(&NDServer::onNack, this, _1, _2),
-                            nullptr);
+                            std::bind(&NDServer::onSubTimeout, this, _1));
       std::cout << "Subscribe Back Interest: " << interest << std::endl;
       m_scheduler->schedule(time::seconds(10), [this, url] {
           subscribeBack(url);
@@ -62,30 +74,23 @@ NDServer::subscribeBack(const std::string& url)
 }
 
 void
+NDServer::onSubTimeout(const Interest& interest)
+{
+  removeRoute(findEntry(interest.getName()));
+}
+
+void
 NDServer::onSubData(const Data& data)
 {
-  // Finding
-  Name name = data.getName();
-  for (auto it = m_db.begin(); it != m_db.end();) {
-    bool is_Prefix = it->prefix.isPrefixOf(name);
-    if (is_Prefix) {
-      std::cout << "Data Publishing from " << it->prefix.toUri() << std::endl
-                << data << std::endl;
-      auto ptr = data.getContent().value();
-      memcpy(it->ip, ptr, sizeof(it->ip));
-      // update timestamp
-      memcpy(&it->tp, name.get(it->prefix.size()).value(), sizeof(it->tp));
-      std::cout << "Record Updated/Confirmed" << std::endl;
-      return;
-    }
-    ++it;
-  }
+  DBEntry& entry = findEntry(data.getName());
+  std::cout << "Record Updated/Confirmed from " << entry.prefix << std::endl;
+  auto ptr = data.getContent().value();
+  memcpy(entry.ip, ptr, sizeof(entry.ip));
 }
 
 int
 NDServer::parseInterest(const Interest& interest, DBEntry& entry)
 {
-  std::cout << "Parsing Interest: " << interest << std::endl;
   // identify a Arrival Interest
   Name name = interest.getName();
   for (int i = 0; i < name.size(); i++)
@@ -94,16 +99,13 @@ NDServer::parseInterest(const Interest& interest, DBEntry& entry)
     int ret = component.compare(Name::Component("arrival"));
     if (ret == 0)
     {
-      std::cout << "arrival" << std::endl;
       Name::Component comp;
       // getIP
       comp = name.get(i + 1);
       memcpy(entry.ip, comp.value(), sizeof(entry.ip));
-      std::cout << "ip finished" << std::endl;
       // getPort
       comp = name.get(i + 2);
       memcpy(&entry.port, comp.value(), sizeof(entry.port));
-      std::cout << "port finished" << std::endl;
       // getName
       comp = name.get(i + 3);
       int begin = i + 3;
@@ -149,19 +151,7 @@ NDServer::onNack(const Interest& interest, const lp::Nack& nack)
 {
   std::cout << "received Nack with reason " << nack.getReason()
             << " for interest " << interest << std::endl;
-  // Finding
-  Name name = interest.getName();
-  auto removeEntry = m_db.begin();
-  for (auto it = m_db.begin(); it != m_db.end();) {
-    bool is_Prefix = it->prefix.isPrefixOf(name);
-    if (is_Prefix) {
-      std::cout << "Nack from " << it->prefix.toUri() << std::endl;
-      removeEntry = it;
-      break;
-    }
-    ++it;
-  }
-  removeRoute(*removeEntry);
+  removeRoute(findEntry(interest.getName()));
 }
 
 void
@@ -173,8 +163,6 @@ NDServer::onInterest(const Interest& request)
     // arrival interest
     return;
   }
-  std::cout << "Not Arrival interest " << std::endl;
-
   Buffer contentBuf;
   bool isUpdate = false;
   int counter = 0;
@@ -184,6 +172,7 @@ NDServer::onInterest(const Interest& request)
     milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
     if (item.tp + item.ttl < ms.count()) {
       // if the entry is out-of-date, erase it
+      std::cout << "Entry out date: " << it->prefix << std::endl;
       it = m_db.erase(it);
     }
     else {
@@ -274,15 +263,9 @@ NDServer::onData(const Data& data, DBEntry& entry)
       std::cout << "Route cost: " << route_cost << std::endl;
       std::cout << "Flags: " << flags << std::endl;
 
-      // find entry and confirm
-      for (auto it = m_db.begin(); it != m_db.end();) {
-        bool is_Prefix = it->prefix.isPrefixOf(route_name);
-        if (is_Prefix) {
-          it->confirmed = true;
-          break;
-        }
-        ++it;
-      }
+      DBEntry& entry = findEntry(route_name);
+      entry.confirmed = true;
+      entry.faceId = face_id;
     }
     else {
       std::cout << "\nRegistration of route failed." << std::endl;
@@ -318,12 +301,12 @@ NDServer::onData(const Data& data, DBEntry& entry)
       Block status_parameter_block = response_block.get(CONTROL_PARAMETERS);
       status_parameter_block.parse();
       int face_id = readNonNegativeIntegerAs<int>(status_parameter_block.get(FACE_ID));
+      entry.faceId = face_id;
       std::cout << responseCode << " " << responseTxt
-                << ": Added Face (FaceId: " << face_id
+                << ": Added Face (FaceId: " << entry.faceId
                 << std::endl;
 
-      entry.faceId = face_id;
-      auto Interest = prepareRibRegisterInterest(entry.prefix, face_id, m_keyChain);
+      auto Interest = prepareRibRegisterInterest(entry.prefix, entry.faceId, m_keyChain);
       m_face.expressInterest(Interest,
                              std::bind(&NDServer::onData, this, _2, entry),
                              nullptr, nullptr);

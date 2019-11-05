@@ -44,6 +44,8 @@ public:
     : m_prefix(m_prefix)
     , m_server_prefix(server_prefix)
   {
+    m_scheduler = new Scheduler(m_face.getIoService());
+    is_ready = false;
     setIP();
     m_port = htons(6363); // default
     inet_aton(server_ip.c_str(), &m_server_IP);
@@ -95,9 +97,13 @@ public:
   
   void sendArrivalInterest()
   {
-    // if (!is_ready)
-    //   return;s
-
+    if (!is_ready) {
+      std::cout << "not ready, try again" << std::endl;
+      m_scheduler->schedule(time::seconds(1), [this] {
+          sendArrivalInterest();
+      });
+      return;
+    }
     Name name("/ndn/nd/arrival");
     name.append((uint8_t*)&m_IP, sizeof(m_IP)).append((uint8_t*)&m_port, sizeof(m_port));
     name.appendNumber(m_prefix.size()).append(m_prefix).appendTimestamp();
@@ -236,6 +242,8 @@ public:
         is_ready = true;
         std::cout << "Client bootstrap succeeded\n";
       }
+
+      is_ready = true;
     }
     else {
       std::cout << "\nRegistration of route failed." << std::endl;
@@ -404,6 +412,7 @@ public:
   Name m_server_prefix;
   in_addr m_IP;
   in_addr m_submask;
+  Scheduler *m_scheduler;
   in_addr m_server_IP;
   int m_server_faceid;
   uint16_t m_port;
@@ -426,6 +435,8 @@ public:
 
     m_scheduler = new Scheduler(m_client->m_face.getIoService());
     m_client->registerSubPrefix();
+    m_client->sendArrivalInterest();
+    loop();
   }
 
   void loop() {
@@ -454,7 +465,5 @@ main(int argc, char** argv)
 {
   Options opt;
   Program program(opt);
-  program.m_client->sendArrivalInterest();
-  program.loop();
   program.m_client->m_face.processEvents();
 }
